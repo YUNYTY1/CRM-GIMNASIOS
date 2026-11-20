@@ -28,6 +28,7 @@ export default function Pagos() {
   const [abonar, setAbonar] = useState<SocioResumen | null>(null)
 
   const plan = planes.find((p) => String(p.id) === planId)
+  const planPaseDiario = planes.find((p) => p.duracion_dias === 1)
 
   const cargarListas = useCallback(async () => {
     const [pl, rc, dd] = await Promise.all([
@@ -81,6 +82,13 @@ export default function Pagos() {
     setMonto(p ? String(p.precio) : '')
   }
 
+  function seleccionarPaseDiario() {
+    if (!planPaseDiario) return
+    setPlanId(String(planPaseDiario.id))
+    setMonto(String(planPaseDiario.precio))
+    setError(null)
+  }
+
   function limpiarTodoManual() {
     setSocio(null)
     setPlanId('')
@@ -110,7 +118,7 @@ export default function Pagos() {
     if (err) return setError(mensajeError(err))
     const r = data as { fecha_fin: string; monto_pendiente: number }
     setOk(
-      `Pago registrado para ${socio.nombre}. Membresía vigente hasta el ${formatFecha(r.fecha_fin)}.` +
+      `Pago registrado para ${socio.nombre} (${plan.nombre}). Membresía vigente hasta el ${formatFecha(r.fecha_fin)}.` +
       (r.monto_pendiente > 0 ? ` Queda pendiente ${formatSoles(r.monto_pendiente)}.` : ''),
     )
     setPlanId('')
@@ -229,7 +237,19 @@ export default function Pagos() {
               </Campo>
             )}
 
-            <Campo label="Plan">
+            <div>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-zinc-400">Plan</span>
+                {planPaseDiario && String(planPaseDiario.id) !== planId && (
+                  <button
+                    type="button"
+                    onClick={seleccionarPaseDiario}
+                    className="rounded-md bg-lime-400/15 px-2 py-0.5 text-xs font-medium text-lime-300 transition hover:bg-lime-400/25"
+                  >
+                    Pase diario ({formatSoles(planPaseDiario.precio)})
+                  </button>
+                )}
+              </div>
               <select className={inputCls} value={planId} onChange={(e) => elegirPlan(e.target.value)}>
                 <option value="">Selecciona un plan</option>
                 {planes.map((p) => (
@@ -238,7 +258,7 @@ export default function Pagos() {
                   </option>
                 ))}
               </select>
-            </Campo>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Campo label="Monto cobrado (S/)">
                 <input

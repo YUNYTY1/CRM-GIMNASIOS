@@ -74,6 +74,7 @@ export default function SocioForm({ socio, onSaved, onClose }: Props) {
   }, [esEdicion])
 
   const planSeleccionado = planes.find((p) => String(p.id) === planId) ?? null
+  const planPaseDiario = planes.find((p) => p.duracion_dias === 1) ?? null
 
   function alCambiarPlan(nuevoPlanId: string) {
     setPlanId(nuevoPlanId)
@@ -84,6 +85,11 @@ export default function SocioForm({ socio, onSaved, onClose }: Props) {
     }
     const elegido = planes.find((p) => String(p.id) === nuevoPlanId)
     setMonto(elegido ? String(elegido.precio) : '')
+  }
+
+  function seleccionarPaseDiario() {
+    if (!planPaseDiario) return
+    alCambiarPlan(String(planPaseDiario.id))
   }
 
   function validar(): Errores {
@@ -291,16 +297,28 @@ export default function SocioForm({ socio, onSaved, onClose }: Props) {
           <div className="space-y-3 rounded-xl border border-borde bg-zinc-900/50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-lime-400">Membresía y pago inicial</p>
 
-            <Campo label="Plan">
+            <div>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <span className="text-xs font-medium text-zinc-400">Plan</span>
+                {planPaseDiario && String(planPaseDiario.id) !== planId && (
+                  <button
+                    type="button"
+                    onClick={seleccionarPaseDiario}
+                    className="rounded-md bg-lime-400/15 px-2 py-0.5 text-xs font-medium text-lime-300 transition hover:bg-lime-400/25"
+                  >
+                    Pase diario ({formatSoles(planPaseDiario.precio)})
+                  </button>
+                )}
+              </div>
               <select className={inputCls} value={planId} onChange={(e) => alCambiarPlan(e.target.value)}>
                 {planes.map((p) => (
                   <option key={p.id} value={String(p.id)}>
-                    {p.nombre} ({p.duracion_dias} días · {formatSoles(p.precio)})
+                    {p.nombre} ({p.duracion_dias} {p.duracion_dias === 1 ? 'día' : 'días'} · {formatSoles(p.precio)})
                   </option>
                 ))}
                 <option value="">Sin membresía por ahora</option>
               </select>
-            </Campo>
+            </div>
 
             {planSeleccionado && (
               <div className="grid grid-cols-2 gap-3">

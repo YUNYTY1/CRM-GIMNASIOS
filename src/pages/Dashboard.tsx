@@ -1,13 +1,35 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { CalendarClock, MessageCircle, UserCheck, Users, Wallet } from 'lucide-react'
 import { GYM_NAME, supabase } from '../lib/supabase'
 import type { ResumenDashboard } from '../lib/types'
 import { diaCorto, diasTexto, enlaceWhatsApp, formatFecha, formatSoles, mensajeError, mesCorto } from '../lib/format'
 import { Alerta, Card, PageHeader, Spinner, Vacio } from '../components/ui'
 
-const tooltipStyle = { backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, color: '#f4f4f5' }
+type RangoDias = 7 | 14 | 30
+type RangoMeses = 3 | 6 | 0
+
+const tooltipStyle = {
+  backgroundColor: '#18181b',
+  border: '1px solid #27272a',
+  borderRadius: 10,
+  color: '#f4f4f5',
+  fontSize: 13,
+}
+
+const selectFiltroCls =
+  'rounded-lg border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-xs font-medium text-zinc-200 focus:border-lime-400 focus:outline-none'
 
 function Tarjeta({ titulo, valor, icono, to }: { titulo: string; valor: string; icono: React.ReactNode; to?: string }) {
   const contenido = (
@@ -32,6 +54,8 @@ function Tarjeta({ titulo, valor, icono, to }: { titulo: string; valor: string; 
 export default function Dashboard() {
   const [data, setData] = useState<ResumenDashboard | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [rangoDias, setRangoDias] = useState<RangoDias>(30)
+  const [rangoMeses, setRangoMeses] = useState<RangoMeses>(6)
 
   useEffect(() => {
     void supabase.rpc('refrescar_estados_membresias')
@@ -43,6 +67,19 @@ export default function Dashboard() {
 
   if (error) return <Alerta>{error}</Alerta>
   if (!data) return <Spinner />
+
+  const asistenciasFiltradas = data.asistencias_30.slice(-rangoDias)
+  const totalDias = asistenciasFiltradas.reduce((acc, item) => acc + item.total, 0)
+  const promedioDiario = asistenciasFiltradas.length > 0 ? totalDias / asistenciasFiltradas.length : 0
+
+  const mesesFiltrados = rangoMeses === 0 ? data.ingresos_meses : data.ingresos_meses.slice(-rangoMeses)
+  const ultimoMes = mesesFiltrados.length > 0 ? mesesFiltrados[mesesFiltrados.length - 1]?.total ?? 0 : 0
+  const mesAnterior = mesesFiltrados.length > 1 ? mesesFiltrados[mesesFiltrados.length - 2]?.total ?? 0 : null
+  const diffMes = mesAnterior !== null ? ultimoMes - mesAnterior : null
+  const pctMes =
+    mesAnterior !== null && mesAnterior > 0 && diffMes !== null
+      ? Math.round((diffMes / mesAnterior) * 100)
+      : null
 
   return (
     <>
@@ -127,30 +164,107 @@ export default function Dashboard() {
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
-          <h2 className="mb-4 font-bold">Asistencias por día (últimos 30 días)</h2>
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="font-bold">Tendencia de asistencias</h2>
+              <p className="text-xs text-zinc-400">
+                {totalDias} ingresos · Prom. {promedioDiario.toFixed(1)} / día
+              </p>
+            </div>
+            <select
+              aria-label="Filtrar asistencias por días"
+              value={rangoDias}
+              onChange={(e) => setRangoDias(Number(e.target.value) as RangoDias)}
+              className={selectFiltroCls}
+            >
+              <option value={7}>Últimos 7 días</option>
+              <option value={14}>Últimos 14 días</option>
+              <option value={30}>Últimos 30 días</option>
+            </select>
+          </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.asistencias_30}>
+              <AreaChart data={asistenciasFiltradas}>
+                <defs>
+                  <linearGradient id="asistenciasGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#a3e635" stopOpacity={0.38} />
+                    <stop offset="95%" stopColor="#a3e635" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
                 <CartesianGrid stroke="#27272a" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="dia" tickFormatter={diaCorto} stroke="#71717a" fontSize={12} interval="preserveStartEnd" minTickGap={24} />
+                <XAxis
+                  dataKey="dia"
+                  tickFormatter={diaCorto}
+                  stroke="#71717a"
+                  fontSize={12}
+                  interval="preserveStartEnd"
+                  minTickGap={24}
+                />
                 <YAxis stroke="#71717a" fontSize={12} allowDecimals={false} width={32} />
-                <Tooltip contentStyle={tooltipStyle} labelFormatter={(v) => formatFecha(String(v))} />
-                <Bar dataKey="total" name="Asistencias" fill="#a3e635" radius={[4, 4, 0, 0]} />
-              </BarChart>
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  formatter={(v) => [`${Number(v)} asistencias`, 'Total']}
+                  labelFormatter={(v) => formatFecha(String(v))}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#a3e635"
+                  strokeWidth={2.5}
+                  fill="url(#asistenciasGrad)"
+                  activeDot={{ r: 5, fill: '#a3e635', stroke: '#18181b', strokeWidth: 2 }}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
         <Card>
-          <h2 className="mb-4 font-bold">Ingresos por mes</h2>
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="font-bold">Ingresos por mes</h2>
+              {diffMes !== null ? (
+                <p
+                  className={`text-xs font-medium ${
+                    diffMes >= 0 ? 'text-lime-400' : 'text-red-400'
+                  }`}
+                >
+                  {diffMes >= 0 ? '+' : ''}
+                  {formatSoles(diffMes)} vs mes ant.
+                  {pctMes !== null ? ` (${pctMes >= 0 ? '+' : ''}${pctMes}%)` : ''}
+                </p>
+              ) : (
+                <p className="text-xs text-zinc-400">Comparativa mensual</p>
+              )}
+            </div>
+            <select
+              aria-label="Filtrar ingresos por meses"
+              value={rangoMeses}
+              onChange={(e) => setRangoMeses(Number(e.target.value) as RangoMeses)}
+              className={selectFiltroCls}
+            >
+              <option value={3}>Últimos 3 meses</option>
+              <option value={6}>Últimos 6 meses</option>
+              <option value={0}>Todos</option>
+            </select>
+          </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.ingresos_meses}>
+              <BarChart data={mesesFiltrados}>
                 <CartesianGrid stroke="#27272a" strokeDasharray="3 3" vertical={false} />
                 <XAxis dataKey="mes" tickFormatter={mesCorto} stroke="#71717a" fontSize={12} />
-                <YAxis stroke="#71717a" fontSize={12} width={48} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatSoles(Number(v))} labelFormatter={(v) => mesCorto(String(v))} />
-                <Bar dataKey="total" name="Ingresos" fill="#a3e635" radius={[4, 4, 0, 0]} />
+                <YAxis
+                  stroke="#71717a"
+                  fontSize={12}
+                  width={56}
+                  tickFormatter={(v) => `S/ ${Number(v)}`}
+                />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  formatter={(v) => [formatSoles(Number(v)), 'Ingresos']}
+                  labelFormatter={(v) => mesCorto(String(v))}
+                />
+                <Bar dataKey="total" name="Ingresos" fill="#a3e635" radius={[6, 6, 0, 0]} maxBarSize={44} />
               </BarChart>
             </ResponsiveContainer>
           </div>

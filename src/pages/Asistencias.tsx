@@ -12,7 +12,7 @@ interface MembresiaConPlan {
   plan_id: number
   fecha_inicio: string
   fecha_fin: string
-  planes: { nombre: string } | { nombre: string }[] | null
+  planes: { nombre: string; duracion_dias?: number } | { nombre: string; duracion_dias?: number }[] | null
 }
 
 interface AsistenciaRow {
@@ -104,13 +104,11 @@ export default function Asistencias() {
   }, [searchParams, hoy])
 
   const [fecha, setFecha] = useState<string>(fechaInicial)
-  const [socioId, setSocioId] = useState<string>(searchParams.get('socio') ?? '')
   const [planId, setPlanId] = useState<string>(searchParams.get('plan') ?? '')
   const [busqueda, setBusqueda] = useState<string>('')
 
   const [registros, setRegistros] = useState<AsistenciaRow[]>([])
-  const [socios, setSocios] = useState<Pick<Socio, 'id' | 'nombre' | 'dni'>[]>([])
-  const [planes, setPlanes] = useState<Pick<Plan, 'id' | 'nombre'>[]>([])
+  const [planes, setPlanes] = useState<Pick<Plan, 'id' | 'nombre' | 'duracion_dias'>[]>([])
   const [cargando, setCargando] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -128,7 +126,7 @@ export default function Asistencias() {
           .order('fecha_hora', { ascending: false })
           .limit(1000),
         supabase.from('socios').select('id, nombre, dni, foto_url').order('nombre'),
-        supabase.from('planes').select('id, nombre').order('nombre'),
+        supabase.from('planes').select('id, nombre, duracion_dias').order('duracion_dias'),
         supabase
           .from('membresias')
           .select('id, socio_id, plan_id, fecha_inicio, fecha_fin, planes(nombre)')
@@ -172,8 +170,7 @@ export default function Asistencias() {
         }
       )
 
-      setSocios(listaSocios.map(({ id, nombre, dni }) => ({ id, nombre, dni })))
-      setPlanes((resPlanes.data ?? []) as Pick<Plan, 'id' | 'nombre'>[])
+      setPlanes((resPlanes.data ?? []) as Pick<Plan, 'id' | 'nombre' | 'duracion_dias'>[])
       setRegistros(filas)
       setCargando(false)
     }
@@ -188,7 +185,6 @@ export default function Asistencias() {
     const q = busqueda.trim().toLowerCase()
     return registros.filter((r) => {
       if (fecha && fechaLimaISO(r.fecha_hora) !== fecha) return false
-      if (socioId && String(r.socio_id) !== socioId) return false
       if (planId) {
         if (planId === 'sin_plan') {
           if (r.plan_id !== null) return false
@@ -204,7 +200,7 @@ export default function Asistencias() {
       }
       return true
     })
-  }, [registros, fecha, socioId, planId, busqueda])
+  }, [registros, fecha, planId, busqueda])
 
   const sociosUnicosEnVista = useMemo(() => {
     return new Set(filtrados.map((r) => r.socio_id)).size
@@ -212,7 +208,6 @@ export default function Asistencias() {
 
   function limpiarFiltros() {
     setFecha('')
-    setSocioId('')
     setPlanId('')
     setBusqueda('')
     setSearchParams({})
@@ -274,7 +269,7 @@ export default function Asistencias() {
         <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
           <Filter className="h-3.5 w-3.5 text-lime-400" /> Filtros
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-3">
           <div>
             <label className="mb-1 block text-xs text-zinc-400">Día / Fecha</label>
             <input
@@ -283,22 +278,6 @@ export default function Asistencias() {
               onChange={(e) => setFecha(e.target.value)}
               className="w-full rounded-lg border border-borde bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:border-lime-400 focus:outline-none"
             />
-          </div>
-
-          <div>
-            <label className="mb-1 block text-xs text-zinc-400">Socio</label>
-            <select
-              value={socioId}
-              onChange={(e) => setSocioId(e.target.value)}
-              className="w-full rounded-lg border border-borde bg-zinc-900 px-3 py-2 text-sm text-zinc-100 focus:border-lime-400 focus:outline-none"
-            >
-              <option value="">Todos los socios</option>
-              {socios.map((s) => (
-                <option key={s.id} value={String(s.id)}>
-                  {s.nombre} ({s.dni})
-                </option>
-              ))}
-            </select>
           </div>
 
           <div>
@@ -311,7 +290,7 @@ export default function Asistencias() {
               <option value="">Todos los planes</option>
               {planes.map((p) => (
                 <option key={p.id} value={String(p.id)}>
-                  {p.nombre}
+                  {p.nombre} ({p.duracion_dias} {p.duracion_dias === 1 ? 'día' : 'días'})
                 </option>
               ))}
               <option value="sin_plan">Sin plan</option>
