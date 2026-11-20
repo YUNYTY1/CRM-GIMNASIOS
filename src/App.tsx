@@ -10,6 +10,7 @@ import SocioDetalle from './pages/SocioDetalle'
 import Planes from './pages/Planes'
 import Pagos from './pages/Pagos'
 import Acceso from './pages/Acceso'
+import Asistencias from './pages/Asistencias'
 
 function Inicio() {
   const { perfil } = useAuth()
@@ -41,6 +42,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/" element={<Inicio />} />
+          <Route path="/asistencias" element={<Asistencias />} />
           <Route path="/socios" element={<Socios />} />
           <Route path="/socios/:id" element={<SocioDetalle />} />
           <Route path="/pagos" element={<Pagos />} />

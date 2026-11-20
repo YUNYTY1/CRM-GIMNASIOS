@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { Dumbbell, LayoutDashboard, LogOut, Receipt, ScanLine, Tags, Users } from 'lucide-react'
+import { CalendarCheck, Dumbbell, LayoutDashboard, LogOut, Receipt, ScanLine, Tags, Users } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { GYM_NAME } from '../lib/supabase'
 import type { Rol } from '../lib/types'
@@ -7,6 +7,7 @@ import type { Rol } from '../lib/types'
 const items: { to: string; label: string; icon: typeof Users; roles: Rol[] }[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin'] },
   { to: '/acceso', label: 'Acceso', icon: ScanLine, roles: ['admin', 'recepcion'] },
+  { to: '/asistencias', label: 'Asistencias', icon: CalendarCheck, roles: ['admin', 'recepcion'] },
   { to: '/socios', label: 'Socios', icon: Users, roles: ['admin', 'recepcion'] },
   { to: '/pagos', label: 'Pagos', icon: Receipt, roles: ['admin', 'recepcion'] },
   { to: '/planes', label: 'Planes', icon: Tags, roles: ['admin'] },

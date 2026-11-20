@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
-import { Search, X } from 'lucide-react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ArrowUpRight, Search, X } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { METODOS, type MetodoPago, type Pago, type Plan, type SocioResumen } from '../lib/types'
 import { formatFecha, formatFechaHora, formatSoles, mensajeError } from '../lib/format'
@@ -81,6 +81,16 @@ export default function Pagos() {
     setMonto(p ? String(p.precio) : '')
   }
 
+  function limpiarTodoManual() {
+    setSocio(null)
+    setPlanId('')
+    setMonto('')
+    setBusqueda('')
+    setResultados([])
+    setOk(null)
+    setError(null)
+  }
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
@@ -100,8 +110,8 @@ export default function Pagos() {
     if (err) return setError(mensajeError(err))
     const r = data as { fecha_fin: string; monto_pendiente: number }
     setOk(
-      `Pago registrado. Membresía de ${socio.nombre} vigente hasta el ${formatFecha(r.fecha_fin)}.` +
-        (r.monto_pendiente > 0 ? ` Queda pendiente ${formatSoles(r.monto_pendiente)}.` : ''),
+      `Pago registrado para ${socio.nombre}. Membresía vigente hasta el ${formatFecha(r.fecha_fin)}.` +
+      (r.monto_pendiente > 0 ? ` Queda pendiente ${formatSoles(r.monto_pendiente)}.` : ''),
     )
     setPlanId('')
     setMonto('')
@@ -116,23 +126,69 @@ export default function Pagos() {
       <PageHeader titulo="Pagos y membresías" />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <h2 className="mb-3 font-bold">Registrar pago</h2>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="font-bold">Registrar pago</h2>
+            {(socio || ok || planId || monto) && (
+              <button
+                type="button"
+                onClick={limpiarTodoManual}
+                className="text-xs text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline"
+              >
+                Limpiar formulario
+              </button>
+            )}
+          </div>
+
           <form onSubmit={onSubmit} className="space-y-3">
             {error && <Alerta>{error}</Alerta>}
-            {ok && <Alerta tipo="ok">{ok}</Alerta>}
+            {ok && (
+              <div className="space-y-3 rounded-xl border-2 border-lime-500/60 bg-lime-500/15 p-4 text-base text-lime-100 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-lime-400/20 text-sm font-bold text-lime-300">
+                    ✓
+                  </span>
+                  <p className="text-base font-medium leading-snug text-lime-50">{ok}</p>
+                </div>
+
+                {socio && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-lime-500/25 pt-3 text-sm">
+                    <Link
+                      to={`/socios/${socio.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-lime-400/20 px-3 py-1.5 font-semibold text-lime-200 transition hover:bg-lime-400/30"
+                    >
+                      Ver perfil y QR de {socio.nombre} <ArrowUpRight className="h-4 w-4" />
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setOk(null)}
+                      className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-lime-200/80 transition hover:bg-lime-500/20 hover:text-white"
+                    >
+                      Ocultar aviso
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {socio ? (
               <div className="flex items-center gap-3 rounded-lg border border-borde p-3">
                 <Avatar nombre={socio.nombre} url={socio.foto_url} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{socio.nombre}</p>
+                  <Link to={`/socios/${socio.id}`} className="truncate font-semibold hover:text-lime-400">
+                    {socio.nombre}
+                  </Link>
                   <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
                     <BadgeMembresia estado={socio.estado_membresia} />
                     {socio.fecha_fin && <span>hasta {formatFecha(socio.fecha_fin)}</span>}
                     {socio.deuda > 0 && <span className="font-semibold text-red-400">Debe {formatSoles(socio.deuda)}</span>}
                   </div>
                 </div>
-                <button type="button" onClick={() => setSocio(null)} className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-800" aria-label="Quitar socio">
+                <button
+                  type="button"
+                  onClick={() => setSocio(null)}
+                  className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-800"
+                  aria-label="Quitar socio"
+                >
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -140,7 +196,12 @@ export default function Pagos() {
               <Campo label="Socio">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
-                  <input className={`${inputCls} pl-9`} placeholder="Buscar por nombre, DNI o teléfono" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+                  <input
+                    className={`${inputCls} pl-9`}
+                    placeholder="Buscar por nombre, DNI o teléfono"
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                  />
                 </div>
                 {resultados.length > 0 && (
                   <ul className="mt-1 divide-y divide-borde overflow-hidden rounded-lg border border-borde">
@@ -153,10 +214,13 @@ export default function Pagos() {
                             setSocio(s)
                             setBusqueda('')
                             setResultados([])
+                            setOk(null)
                           }}
                         >
                           <Avatar nombre={s.nombre} url={s.foto_url} size="h-8 w-8" />
-                          <span className="text-sm">{s.nombre} <span className="text-xs text-zinc-500">· {s.dni}</span></span>
+                          <span className="text-sm">
+                            {s.nombre} <span className="text-xs text-zinc-500">· {s.dni}</span>
+                          </span>
                         </button>
                       </li>
                     ))}
@@ -177,12 +241,20 @@ export default function Pagos() {
             </Campo>
             <div className="grid grid-cols-2 gap-3">
               <Campo label="Monto cobrado (S/)">
-                <input className={inputCls} inputMode="decimal" value={monto} onChange={(e) => setMonto(e.target.value.replace(/[^\d.]/g, ''))} placeholder="0.00" />
+                <input
+                  className={inputCls}
+                  inputMode="decimal"
+                  value={monto}
+                  onChange={(e) => setMonto(e.target.value.replace(/[^\d.]/g, ''))}
+                  placeholder="0.00"
+                />
               </Campo>
               <Campo label="Método">
                 <select className={inputCls} value={metodo} onChange={(e) => setMetodo(e.target.value as MetodoPago)}>
                   {METODOS.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
                   ))}
                 </select>
               </Campo>
@@ -214,10 +286,14 @@ export default function Pagos() {
                 {deudores.map((d) => (
                   <li key={d.id} className="flex items-center justify-between gap-2 py-2.5">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">{d.nombre}</p>
+                      <Link to={`/socios/${d.id}`} className="truncate text-sm font-medium hover:text-lime-400">
+                        {d.nombre}
+                      </Link>
                       <p className="text-sm font-semibold text-red-400">{formatSoles(d.deuda)}</p>
                     </div>
-                    <Button variant="outline" onClick={() => setAbonar(d)}>Abonar</Button>
+                    <Button variant="outline" onClick={() => setAbonar(d)}>
+                      Abonar
+                    </Button>
                   </li>
                 ))}
               </ul>
@@ -235,7 +311,9 @@ export default function Pagos() {
                   <li key={p.id} className="flex items-center justify-between gap-2 py-2.5 text-sm">
                     <div className="min-w-0">
                       <p className="truncate font-medium">{p.socios?.nombre ?? 'Socio'}</p>
-                      <p className="text-xs capitalize text-zinc-500">{p.concepto} · {p.metodo} · {formatFechaHora(p.fecha)}</p>
+                      <p className="text-xs capitalize text-zinc-500">
+                        {p.concepto} · {p.metodo} · {formatFechaHora(p.fecha)}
+                      </p>
                     </div>
                     <span className="font-semibold">{formatSoles(p.monto)}</span>
                   </li>
@@ -283,7 +361,9 @@ function AbonoModal({ socio, onSaved, onClose }: { socio: SocioResumen; onSaved:
     <Modal titulo={`Abono · ${socio.nombre}`} onClose={onClose}>
       <form onSubmit={onSubmit} className="space-y-3">
         {error && <Alerta>{error}</Alerta>}
-        <p className="text-sm text-zinc-400">Deuda actual: <span className="font-semibold text-red-400">{formatSoles(socio.deuda)}</span></p>
+        <p className="text-sm text-zinc-400">
+          Deuda actual: <span className="font-semibold text-red-400">{formatSoles(socio.deuda)}</span>
+        </p>
         <div className="grid grid-cols-2 gap-3">
           <Campo label="Monto (S/)">
             <input className={inputCls} inputMode="decimal" value={monto} onChange={(e) => setMonto(e.target.value.replace(/[^\d.]/g, ''))} />
@@ -291,14 +371,20 @@ function AbonoModal({ socio, onSaved, onClose }: { socio: SocioResumen; onSaved:
           <Campo label="Método">
             <select className={inputCls} value={metodo} onChange={(e) => setMetodo(e.target.value as MetodoPago)}>
               {METODOS.map((m) => (
-                <option key={m.value} value={m.value}>{m.label}</option>
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
               ))}
             </select>
           </Campo>
         </div>
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" loading={enviando}>Registrar abono</Button>
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" loading={enviando}>
+            Registrar abono
+          </Button>
         </div>
       </form>
     </Modal>

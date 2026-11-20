@@ -9,15 +9,23 @@ import { Alerta, Card, PageHeader, Spinner, Vacio } from '../components/ui'
 
 const tooltipStyle = { backgroundColor: '#18181b', border: '1px solid #27272a', borderRadius: 8, color: '#f4f4f5' }
 
-function Tarjeta({ titulo, valor, icono }: { titulo: string; valor: string; icono: React.ReactNode }) {
-  return (
-    <Card className="flex items-center gap-4">
+function Tarjeta({ titulo, valor, icono, to }: { titulo: string; valor: string; icono: React.ReactNode; to?: string }) {
+  const contenido = (
+    <Card className={`flex items-center gap-4 ${to ? 'transition hover:border-lime-400/50 hover:bg-zinc-900/80' : ''}`}>
       <div className="rounded-xl bg-lime-400/10 p-3 text-lime-400">{icono}</div>
       <div className="min-w-0">
         <p className="text-xs uppercase tracking-wide text-zinc-500">{titulo}</p>
         <p className="truncate text-2xl font-extrabold">{valor}</p>
       </div>
     </Card>
+  )
+
+  return to ? (
+    <Link to={to} className="block">
+      {contenido}
+    </Link>
+  ) : (
+    contenido
   )
 }
 
@@ -40,9 +48,14 @@ export default function Dashboard() {
     <>
       <PageHeader titulo="Dashboard" />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Tarjeta titulo="Socios activos" valor={String(data.socios_activos)} icono={<Users className="h-6 w-6" />} />
+        <Tarjeta titulo="Socios activos" valor={String(data.socios_activos)} icono={<Users className="h-6 w-6" />} to="/socios" />
         <Tarjeta titulo="Ingresos del mes" valor={formatSoles(data.ingresos_mes)} icono={<Wallet className="h-6 w-6" />} />
-        <Tarjeta titulo="Asistencias hoy" valor={String(data.asistencias_hoy)} icono={<UserCheck className="h-6 w-6" />} />
+        <Tarjeta
+          titulo="Asistencias hoy"
+          valor={String(data.asistencias_hoy)}
+          icono={<UserCheck className="h-6 w-6" />}
+          to="/asistencias?fecha=hoy"
+        />
         <Tarjeta titulo="Vencen esta semana" valor={String(data.vencen_semana)} icono={<CalendarClock className="h-6 w-6" />} />
       </div>
 
@@ -54,21 +67,25 @@ export default function Dashboard() {
           ) : (
             <ul className="divide-y divide-borde">
               {data.por_vencer.map((s) => (
-                <li key={s.id} className="flex items-center justify-between gap-2 py-2.5">
+                <li key={s.id} className="flex items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0">
                   <div className="min-w-0">
-                    <Link to={`/socios/${s.id}`} className="block truncate text-sm font-medium hover:text-lime-300">{s.nombre}</Link>
-                    <p className="text-xs text-zinc-500">{diasTexto(s.dias_restantes)} · {formatFecha(s.fecha_fin)}</p>
+                    <Link to={`/socios/${s.id}`} className="block truncate font-medium hover:text-lime-400">
+                      {s.nombre}
+                    </Link>
+                    <p className="text-xs text-zinc-400">
+                      {diasTexto(s.dias_restantes)} · {formatFecha(s.fecha_fin)}
+                    </p>
                   </div>
                   <a
                     href={enlaceWhatsApp(
                       s.telefono,
-                      `Hola ${s.nombre.split(' ')[0]}, te escribimos de ${GYM_NAME}. Tu membresía vence el ${formatFecha(s.fecha_fin)}. ¡Renuévala para seguir entrenando sin interrupciones! 💪`,
+                      `Hola ${s.nombre}, te recordamos que tu membresía en ${GYM_NAME} ${diasTexto(s.dias_restantes).toLowerCase()} (${formatFecha(s.fecha_fin)}).`
                     )}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-500"
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-zinc-950 transition hover:bg-emerald-400"
                   >
-                    <MessageCircle className="h-4 w-4" /> Recordar
+                    <MessageCircle className="h-3.5 w-3.5" /> Recordar
                   </a>
                 </li>
               ))}
@@ -79,57 +96,61 @@ export default function Dashboard() {
         <Card>
           <h2 className="mb-3 font-bold">Deudores</h2>
           {data.deudores.length === 0 ? (
-            <Vacio texto="No hay deudas pendientes." />
+            <Vacio texto="Sin deudas pendientes." />
           ) : (
             <ul className="divide-y divide-borde">
-              {data.deudores.map((s) => (
-                <li key={s.id} className="flex items-center justify-between gap-2 py-2.5">
+              {data.deudores.map((d) => (
+                <li key={d.id} className="flex items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0">
                   <div className="min-w-0">
-                    <Link to={`/socios/${s.id}`} className="block truncate text-sm font-medium hover:text-lime-300">{s.nombre}</Link>
-                    <p className="text-sm font-semibold text-red-400">{formatSoles(s.deuda)}</p>
+                    <Link to={`/socios/${d.id}`} className="block truncate font-medium hover:text-lime-400">
+                      {d.nombre}
+                    </Link>
+                    <p className="text-xs font-semibold text-red-400">{formatSoles(d.deuda)}</p>
                   </div>
                   <a
                     href={enlaceWhatsApp(
-                      s.telefono,
-                      `Hola ${s.nombre.split(' ')[0]}, te escribimos de ${GYM_NAME}. Tienes un saldo pendiente de ${formatSoles(s.deuda)}. ¿Cuándo podrías pasar a regularizarlo? ¡Gracias!`,
+                      d.telefono,
+                      `Hola ${d.nombre}, tienes un saldo pendiente de ${formatSoles(d.deuda)} en ${GYM_NAME}.`
                     )}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-500"
+                    className="flex shrink-0 items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-zinc-950 transition hover:bg-emerald-400"
                   >
-                    <MessageCircle className="h-4 w-4" /> Cobrar
+                    <MessageCircle className="h-3.5 w-3.5" /> Cobrar
                   </a>
                 </li>
               ))}
             </ul>
           )}
         </Card>
+      </div>
 
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <Card>
-          <h2 className="mb-3 font-bold">Asistencias por día (últimos 30 días)</h2>
+          <h2 className="mb-4 font-bold">Asistencias por día (últimos 30 días)</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.asistencias_30}>
-                <CartesianGrid stroke="#27272a" vertical={false} />
-                <XAxis dataKey="dia" tickFormatter={diaCorto} stroke="#71717a" fontSize={11} interval={4} />
-                <YAxis stroke="#71717a" fontSize={11} allowDecimals={false} width={28} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#27272a' }} labelFormatter={(l) => formatFecha(String(l))} formatter={(v) => [String(v), 'Ingresos']} />
-                <Bar dataKey="total" fill="#a3e635" radius={[3, 3, 0, 0]} />
+                <CartesianGrid stroke="#27272a" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="dia" tickFormatter={diaCorto} stroke="#71717a" fontSize={12} interval="preserveStartEnd" minTickGap={24} />
+                <YAxis stroke="#71717a" fontSize={12} allowDecimals={false} width={32} />
+                <Tooltip contentStyle={tooltipStyle} labelFormatter={(v) => formatFecha(String(v))} />
+                <Bar dataKey="total" name="Asistencias" fill="#a3e635" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
         <Card>
-          <h2 className="mb-3 font-bold">Ingresos por mes</h2>
+          <h2 className="mb-4 font-bold">Ingresos por mes</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.ingresos_meses}>
-                <CartesianGrid stroke="#27272a" vertical={false} />
-                <XAxis dataKey="mes" tickFormatter={mesCorto} stroke="#71717a" fontSize={11} />
-                <YAxis stroke="#71717a" fontSize={11} width={44} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#27272a' }} labelFormatter={(l) => mesCorto(String(l))} formatter={(v) => [formatSoles(Number(v)), 'Ingresos']} />
-                <Bar dataKey="total" fill="#a3e635" radius={[3, 3, 0, 0]} />
+                <CartesianGrid stroke="#27272a" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="mes" tickFormatter={mesCorto} stroke="#71717a" fontSize={12} />
+                <YAxis stroke="#71717a" fontSize={12} width={48} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(v) => formatSoles(Number(v))} labelFormatter={(v) => mesCorto(String(v))} />
+                <Bar dataKey="total" name="Ingresos" fill="#a3e635" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
